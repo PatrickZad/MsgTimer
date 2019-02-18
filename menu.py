@@ -13,7 +13,7 @@ def setTask(msg):
     if msg['ToUserName']=='filehelper':
         if msg['Content']=='1':
             current=1
-            itchat.send(msg='请回复群聊名称',toUserName='filehelper')
+            itchat.send(msg='请回复群聊名称，以空格分隔多个群聊',toUserName='filehelper')
         elif msg['Content']=='2':
             current=2
             itchat.send(msg='请回复消息内容',toUserName='filehelper')
@@ -22,19 +22,28 @@ def setTask(msg):
             itchat.send(msg='请回复发送时间，格式可以为 今天hh:mm 或 明天hh:mm 两种，24小时制',toUserName='filehelper')
         elif msg['Content']=='0':
             current=0 
-            itchat.send(msg='当前的任务是\n群聊:'+default['nickname']+'\n消息:'
+            itchat.send(msg='当前的任务是\n群聊:'+ str(default['nickname'])+'\n消息:'
                     +default['msg']+'\n定时:'+default['time'][0]+default['time'][1]+':'
                     +default['time'][2],toUserName='filehelper') 
         elif msg['Content']=='6':
             if hasDefault:
-                room=itchat.search_chatrooms(name=default['nickname'])
-                if len(room)==0:
-                    itchat.send(msg='未找到该群聊，请确定群聊是否已保存到通讯录或群聊名称是否正确',toUserName='filehelper')
-                elif len(room)==1:
-                    default['target']=room[0].UserName
+                roomlist=[]
+                for nickname in default['nickname']:
+                    room=itchat.search_chatrooms(name=nickname)
+                    if len(room)==0:
+                        itchat.send(msg='未找到群聊'+nickname+'，请确定群聊是否已保存到通讯录或群聊名称是否正确',toUserName='filehelper')
+                    else:
+                        roomlist.append(room)
+                if len(roomlist)==len(default['nickname']):
+                    default['target']=[room[0].UserName for room in roomlist]
                     current=8
-                    dstr='nickname:'+default['nickname']+'target:'+default['target']+\
-                    'msg:'+default['msg']+'time:'+default['time'][0]+' '+default['time'][1]+' '+default['time'][2]
+                    namestr='nickname: '
+                    for nick in default['nickname']:
+                        namestr+=nick+' '
+                    namestr+='target: '
+                    for target in default['target']:
+                        namestr+=target+' '
+                    dstr=namestr+'msg:'+default['msg']+'time:'+default['time'][0]+' '+default['time'][1]+' '+default['time'][2]
                     with open('./default','w') as f:
                         f.write(dstr)
                     task=Task(target=default['target'],msg=default['msg'],time=default['time'])
@@ -59,12 +68,25 @@ def setTask(msg):
                 if len(item)==0:
                     flag=False
             if flag:
-                room=itchat.search_chatrooms(name=default['nickname'])
-                default['target']=room[0].UserName
-                dstr='nickname:'+default['nickname']+'target:'+default['target']+\
-                    'msg:'+default['msg']+'time:'+default['time'][0]+' '+default['time'][1]+' '+default['time'][2]
-                with open('./default','w') as f:
-                    f.write(dstr)
+                roomlist=[]
+                for nickname in default['nickname']:
+                    room=itchat.search_chatrooms(name=nickname)
+                    if len(room)==0:
+                        itchat.send(msg='未找到群聊'+nickname+'，请确定群聊是否已保存到通讯录或群聊名称是否正确',toUserName='filehelper')
+                    else:
+                        roomlist.append(room)
+                if len(roomlist)==len(default['nickname']):
+                    default['target']=[room[0].UserName for room in roomlist]
+                    current=8
+                    namestr='nickname: '
+                    for nick in default['nickname']:
+                        namestr+=nick+' '
+                    namestr+='target: '
+                    for target in default['target']:
+                        namestr+=target+' '
+                    dstr=namestr+'msg:'+default['msg']+'time:'+default['time'][0]+' '+default['time'][1]+' '+default['time'][2]
+                    with open('./default','w') as f:
+                        f.write(dstr)
                 task=Task(target=default['target'],msg=default['msg'],time=default['time'])
                 task.startTask()
                 '''
@@ -83,16 +105,19 @@ def setTask(msg):
                         +'\n未设置完成！',toUserName='filehelper')
         elif current==1 :
             #TODO 检查名称
-            room=itchat.search_chatrooms(name=msg['Content'])
-            if len(room)==0:
-                itchat.send(msg='未找到该群聊，请确定群聊是否已保存到通讯录或群聊名称是否正确',toUserName='filehelper')
-            elif len(room)==1:
-                default['nickname']=room[0].NickName
-                default['target']=room[0].UserName
+            namelist=msg['Content'].split(' ')
+            roomlist=[]
+            for nickname in namelist:
+                room=itchat.search_chatrooms(name=nickname)
+                if len(room)==0:
+                    itchat.send(msg='未找到群聊'+nickname+'，请确定群聊是否已保存到通讯录或群聊名称是否正确',toUserName='filehelper')
+                else:
+                    roomlist.append(room)
+            if len(roomlist)==len(namelist):
+                default['nickname']=[room[0].NickName for room in roomlist]
+                default['target']=[room[0].UserName for room in roomlist]
                 itchat.send(msg='群聊选择成功',toUserName='filehelper')
                 current=8
-            else:
-                itchat.send(msg='找到多个群聊，请输入更精确的群聊名称',toUserName='filehelper')
         elif current==2:
             default['msg']=msg['Content']
             itchat.send(msg='消息设置成功',toUserName='filehelper')
@@ -117,9 +142,9 @@ with open('./default','r',encoding='gbk') as f:
     default=f.read()
 if len(default)>0:
     content=re.match('\s*nickname:(.*)target:(.*)msg:(.*)time:(.*)\s*',default)
-    default={'nickname':content.group(1),'target':content.group(2),'msg':content.group(3),\
+    default={'nickname':content.group(1).split(' '),'target':content.group(2),'msg':content.group(3),\
             'time':content.group(4).split(' ')}
-    itchat.send(msg='您上次的任务是\n群聊:'+default['nickname']+'\n消息:'+default['msg']
+    itchat.send(msg='您上次的任务是\n群聊:'+str(default['nickname'])+'\n消息:'+default['msg']
             +'\n定时:'+default['time'][0]+default['time'][1]+':'+default['time'][2]
             +'\n回复6直接启动此任务',toUserName='filehelper')
     hasDefault=True

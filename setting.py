@@ -23,7 +23,8 @@ class Task():
     def __sendMsg(self):
         itchat.send_msg(msg='定时任务已启动',toUserName='filehelper')
         time.sleep(self.time)
-        sent=itchat.send_msg(msg=self.msg,toUserName=self.target)
+        for t in self.target:
+            sent=itchat.send_msg(msg=self.msg,toUserName=t)
         if sent:
             itchat.send_msg(msg='定时消息发送成功',toUserName='filehelper')
         else:
